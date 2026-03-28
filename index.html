@@ -1,84 +1,123 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAPS 2026 - RARM</title>
+    <title>DAPS 2026</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; background: #f0f4f8; padding: 20px; text-align: center; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        select { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #ddd; }
-        #canvas { width: 100%; border-radius: 15px; margin-top: 15px; display: none; background: #000; }
-        .btn { background: #0061ff; color: white; padding: 15px; border: none; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; }
-        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 100; color: white; font-size: 24px; font-weight: bold; }
+        :root { --p: #0061ff; --s: #10b981; --w: #f59e0b; --bg: #f8fafc; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; color: #1e293b; }
+        
+        .header { width: 100%; background: #fff; padding: 25px 0; text-align: center; border-bottom: 1px solid #e2e8f0; margin-bottom: 30px; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 800; color: var(--p); letter-spacing: -0.5px; }
+        .session-badge { background: #eff6ff; color: var(--p); padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 8px; display: inline-block; text-transform: uppercase; }
+
+        .scanner-container { width: 90%; max-width: 400px; position: relative; }
+        #canvas { width: 100%; border-radius: 30px; background: #000; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); display: none; }
+        
+        .btn-start { background: var(--p); color: white; border: none; padding: 20px 40px; border-radius: 20px; font-weight: 700; font-size: 16px; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 20px rgba(0,97,255,0.2); }
+        .btn-start:active { transform: scale(0.95); }
+
+        /* Elegant Notifications */
+        #notif { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); width: 85%; max-width: 350px; padding: 20px; border-radius: 24px; display: none; text-align: center; animation: slideUp 0.4s ease; z-index: 100; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .notif-success { background: white; border-left: 6px solid var(--s); }
+        .notif-warning { background: white; border-left: 6px solid var(--w); }
+        .notif-error { background: white; border-left: 6px solid #ef4444; }
+
+        @keyframes slideUp { from { transform: translate(-50%, 50px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+        
+        .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: var(--p); box-shadow: 0 0 15px var(--p); animation: scan 2s infinite linear; display: none; }
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2 style="color:#0061ff">DAPS 2026</h2>
-        <select id="hari"><option value="1">Hari 1</option><option value="2">Hari 2</option><option value="3">Hari 3</option></select>
-        <select id="sesi">
-            <option value="Tahajjud">Tahajjud</option><option value="Shubuh">Shubuh</option>
-            <option value="Olahraga">Olahraga</option><option value="Materi 1">Materi 1</option>
-        </select>
-        <button class="btn" id="startBtn" onclick="init()">AKTIFKAN KAMERA</button>
-        <canvas id="canvas"></canvas>
-    </div>
-    <div id="overlay">BERHASIL! ✓</div>
-    <script>
-        const video = document.createElement("video");
-        const canvasElement = document.getElementById("canvas");
-        const canvas = canvasElement.getContext("2d");
 
-        function init() {
-            document.getElementById('startBtn').style.display = 'none';
-            canvasElement.style.display = 'block';
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
-                video.srcObject = stream;
-                video.setAttribute("playsinline", true);
-                video.play();
-                requestAnimationFrame(tick);
-            });
-        }
+<div class="header">
+    <h1>DAPS 2026</h1>
+    <div id="sessionInfo" class="session-badge">Memuat Sesi...</div>
+</div>
 
-        function tick() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvasElement.height = video.videoHeight;
-                canvasElement.width = video.videoWidth;
-                canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-                var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-                var code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-                if (code) {
-                    sendData(code.data);
-                    return;
-                }
-            }
+<div class="scanner-container">
+    <button id="startBtn" class="btn-start" onclick="startScanner()">BUKA KAMERA SCANNER</button>
+    <div id="scanLine" class="scan-line"></div>
+    <canvas id="canvas"></canvas>
+</div>
+
+<div id="notif">
+    <div id="n-icon" style="font-size: 30px; margin-bottom: 5px;"></div>
+    <div id="n-name" style="font-weight: 800; font-size: 18px;"></div>
+    <div id="n-sub" style="font-size: 13px; color: #64748b;"></div>
+</div>
+
+<audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+<script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwIyAO2_Km0JFSGY1cQQh9D3Nga9qXm3nSqoPFNkbbTGNvO4X3QMckdA36ndN3OZV5fXQ/exec"; // GANTI INI
+    const video = document.createElement("video");
+    const canvasElement = document.getElementById("canvas");
+    const canvas = canvasElement.getContext("2d");
+    const notif = document.getElementById("notif");
+
+    // Ambil info sesi dari database saat buka apps
+    fetch(API_URL).then(r => r.json()).then(data => {
+        document.getElementById('sessionInfo').innerText = "HARI " + data.hari + " • " + data.sesi;
+    });
+
+    function startScanner() {
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('scanLine').style.display = 'block';
+        canvasElement.style.display = 'block';
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream) {
+            video.srcObject = stream;
+            video.setAttribute("playsinline", true);
+            video.play();
             requestAnimationFrame(tick);
-        }
+        });
+    }
 
-        function sendData(id) {
-            // GANTI URL DI BAWAH INI DENGAN URL WEB APP ANDA
-            const webAppUrl = "https://script.google.com/macros/s/AKfycbwIyAO2_Km0JFSGY1cQQh9D3Nga9qXm3nSqoPFNkbbTGNvO4X3QMckdA36ndN3OZV5fXQ/exec";
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvasElement.height = video.videoHeight;
+            canvasElement.width = video.videoWidth;
+            canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+            var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+            var code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
             
-            const payload = {
-                id: id,
-                sesi: document.getElementById('sesi').value,
-                hari: document.getElementById('hari').value
-            };
-
-            fetch(webAppUrl, {
-                method: "POST",
-                mode: "no-cors",
-                body: JSON.stringify(payload)
-            }).then(() => {
-                document.getElementById('overlay').style.display = 'flex';
-                setTimeout(() => {
-                    document.getElementById('overlay').style.display = 'none';
-                    requestAnimationFrame(tick);
-                }, 1500);
-            });
+            if (code) {
+                document.getElementById('beep').play();
+                processScan(code.data);
+                return;
+            }
         }
-    </script>
+        requestAnimationFrame(tick);
+    }
+
+    function processScan(id) {
+        fetch(API_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify({ id: id })
+        }).then(() => {
+            // Karena no-cors, kita tidak bisa baca respons detail, 
+            // tapi kita beri feedback visual bahwa data terkirim.
+            showNotif("success", "ID: " + id, "Data Berhasil Terkirim ke Database");
+            setTimeout(() => { 
+                notif.style.display = "none"; 
+                requestAnimationFrame(tick); 
+            }, 2500);
+        });
+    }
+
+    function showNotif(type, title, sub) {
+        notif.style.display = "block";
+        notif.className = "notif-" + type;
+        document.getElementById('n-icon').innerText = type === "success" ? "✓" : "!";
+        document.getElementById('n-name').innerText = title;
+        document.getElementById('n-sub').innerText = sub;
+    }
+</script>
+
 </body>
 </html>
